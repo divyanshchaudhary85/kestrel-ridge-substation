@@ -2,7 +2,7 @@
 
 An interactive 3D electrical substation and distribution network, built as an operator-training and teaching tool. One self-contained HTML file, no build step.
 
-**Live demo:** https://YOUR-USERNAME.github.io/kestrel-ridge-substation/
+**Live demo:** https://divyanshchaudhary85.github.io/kestrel-ridge-substation/
 
 ---
 
