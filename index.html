@@ -3,6 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Explore a live 230/34.5 kV substation through a modern EMS/SCADA operator workspace with switching, alarms, power flow, protection, FISR, and guided training scenarios.">
+<meta name="theme-color" content="#0b1118">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Kestrel Ridge EMS / SCADA Training">
+<meta property="og:description" content="An interactive substation simulator with live equipment state, operator events, alarms, power flow, and guided scenarios.">
+<meta property="og:image" content="assets/kestrel-ridge-social.png">
 <title>Kestrel Ridge Substation — 230/34.5 kV Interactive Model</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -2025,6 +2031,7 @@ const raycaster=new THREE.Raycaster(); const ndc=new THREE.Vector2();
 let SEL=null, selHelper=null, selMats=[];
 const HL=new THREE.Color(0x35C9E8);
 function compOf(o){ while(o){ if(o.userData&&o.userData.comp) return o.userData.comp; o=o.parent; } return null; }
+function deviceOf(o){ while(o){ if(o.userData&&o.userData.deviceId) return o.userData.deviceId; o=o.parent; } return null; }
 function clearSel(){
   selMats.forEach(o=>{o.m.material=o.om;}); selMats=[];
   if(selHelper){ scene.remove(selHelper); selHelper=null; }
@@ -2061,7 +2068,7 @@ function pickAt(cx,cy){
   for(const h of hits){
     if(!h.object.visible) continue;
     const id=compOf(h.object);
-    if(id&&COMP[id]){ select(id,false); return; }
+    if(id&&COMP[id]){ window.__PICKED_DEVICE=deviceOf(h.object); select(id,false); return; }
   }
   clearSel(); closeInfo();
 }
@@ -2328,11 +2335,6 @@ function frame(now){
   /* telemetry jitter */
   teleT+=dt;
   if(teleT>0.45){ teleT=0;
-    if(!FAULT.run || FAULT.i<0){
-      T.v230=231.4+Math.sin(acc*0.21)*0.6; T.v34=34.9+Math.sin(acc*0.33)*0.12;
-      T.t1=34.8+Math.sin(acc*0.17)*1.1; T.mw=61.2+Math.sin(acc*0.13)*1.8;
-      if(T.cb3) T.f3=342+Math.sin(acc*0.9)*11;
-    }
     paintTele();
   }
   /* fault sequencer */
@@ -3136,9 +3138,9 @@ function renderBoard(fs){
   const solT=fs.reduce((a,s)=>a+s.solar,0), ldT=fs.reduce((a,s)=>a+s.load,0);
   h.push(bc(solT>0.05?'rev':'off','Rooftop DER',fmt2(solT)+' MW',Math.round(SUN.v*100)+'% irradiance'));
   h.push(bc('ok','Station load',fmt2(Math.max(0,ldT-solT))+' MW',ldT.toFixed(1)+' MW gross'));
-  const out=fs.reduce((a,s,i)=>a+(s.live?0:FEED[i].cust),0);
+  const out=fs.reduce((a,s)=>a+s.outCust,0);
   h.push(bc(out?'bad':'ok','Customers',out?out+' OUT':'ALL ON',
-    fs.reduce((a,s,i)=>a+(s.live?FEED[i].cust:0),0)+' served'));
+    (FEED.reduce((a,s)=>a+s.cust,0)-out)+' served'));
   boardEl.innerHTML=h.join('');
 }
 function fmt2(v){ return (Math.round(v*10)/10).toFixed(1); }
@@ -3193,7 +3195,8 @@ function operate(id,want,force){
 window.__OPS_NET={DEV,solve,applyVisuals,operate,checkOperate,FEED,SUN,ST,NB,F2,systemState,
                   SEC,sectionState,sectionSources,buildAdj,NODES,FIXED,TIES,FDR_AMP_RATING,
                   setEV:f=>{extraVisuals=f;},FEEDMAT,amps,dayFactor,secShare,
-                  isLive:n=>LIVE.has(n),toast,LIVEREF:()=>LIVE,zoneOf,renderBoard};
+                  isLive:n=>LIVE.has(n),toast,LIVEREF:()=>LIVE,zoneOf,renderBoard,
+                  flowGroups:{base:ARROWS,reversible:ARR2}};
 
 /* ================================================ new component nameplates */
 Object.assign(COMP,{
@@ -3254,7 +3257,11 @@ Object.values(DEV).forEach(d=>{
   let best=null,bd=1e9;
   REG[d.comp].forEach(o=>{ if(!o.position) return;
     const dd=Math.hypot(o.position.x-p[0],o.position.z-p[1]); if(dd<bd){bd=dd;best=o;} });
-  if(best&&bd<9) d.obj=best;
+  if(best&&bd<9){
+    d.obj=best;
+    best.userData.deviceId=d.id;
+    best.traverse(o=>{ o.userData.deviceId=d.id; });
+  }
   d.pos=p;
 });
 function setDev(id,val){ const d=DEV[id]; if(!d) return;
@@ -3274,7 +3281,7 @@ function operate2(id,want,force){
 }
 function deviceEffect(d,want){
   const fs=systemState();
-  const out=fs.reduce((a,s,i)=>a+(s.live?0:FEED[i].cust),0);
+  const out=fs.reduce((a,s)=>a+s.outCust,0);
   let msg=d.name+' is now '+(want?'CLOSED':'OPEN')+'. ';
   if(d.kind==='gnd') msg+= want? 'That section is now bonded to the ground grid and is safe to work on. It cannot be re-energised until the earth is removed.'
                              : 'The safety earth has been removed. The section can now be re-energised.';
@@ -3307,7 +3314,7 @@ const NORMAL={};
 Object.values(DEV).forEach(d=>NORMAL[d.id]=d.closed);
 function restoreNormal(){
   Object.values(DEV).forEach(d=>setDev(d.id,NORMAL[d.id]));
-  ST.shed=[]; ST.fault=null; SUN.v=0.62;
+  ST.shed=[]; ST.fault=null; delete ST.faultSec; SUN.v=0.62;
   ['oc','trip','lock','comm'].forEach(k=>annun(k,false));
   solve(); applyVisuals(); syncSun();
 }
@@ -4337,6 +4344,14 @@ TIES.forEach((t,i)=>{
       conductor(s,V.MV,0.05,'tie'+(i+1)+(j?'b':'a'));
     }
   });
+});
+
+/* Final device tagging pass: later-built reclosers, sectionalisers and ties must
+   carry their exact operating ID just like the primary-yard equipment. */
+Object.values(DEV).forEach(d=>{
+  if(!d.obj) return;
+  d.obj.userData.deviceId=d.id;
+  if(d.obj.traverse) d.obj.traverse(o=>{ o.userData.deviceId=d.id; });
 });
 
 /* ===================================== residential build-out for FISR (+100) */
@@ -6465,5 +6480,7 @@ N.solve(); N.applyVisuals();
 })();
 </script>
 
+<link rel="stylesheet" href="scada-ui.css?v=3.0.3">
+<script src="scada-ui.js?v=3.0.3"></script>
 </body>
 </html>

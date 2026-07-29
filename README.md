@@ -1,6 +1,6 @@
 # Kestrel Ridge Substation
 
-An interactive 3D electrical substation and distribution network, built as an operator-training and teaching tool. One self-contained HTML file, no build step.
+An interactive 3D electrical substation and distribution network, built as an operator-training and teaching tool. It runs directly in the browser with no build step.
 
 **Live demo:** https://divyanshchaudhary85.github.io/kestrel-ridge-substation/
 
@@ -14,6 +14,12 @@ Everything visible is a consequence of the electrical model underneath. Energisa
 
 ## Features
 
+- **Modern EMS/SCADA workspace.** A polished operator shell keeps the 3D yard, station summary, live equipment detail, event history, alarms, actions and plain-language explanations in one responsive view.
+- **Canonical event and alarm model.** Every switching action records time, source, old and new state, success, customer impact and priority. Active, unacknowledged and returned alarms stay synchronized with the network.
+- **Equipment finder and exact controls.** Search by device ID, name, voltage or type, then focus the selected asset and operate only that specific breaker, disconnect, earth, recloser, sectionaliser or tie.
+- **Independent power-flow and layer controls.** Flow arrows persist across camera modes, scale with calculated loading, and can be toggled separately from labels, safety clearances, the ground grid and the status legend.
+- **Dark and light operator themes**, saved preferences, optional audible High/Critical alarms, desktop/mobile layouts and keyboard-friendly controls.
+
 - **46 selectable components**, each with purpose, normal condition, fault behaviour, SCADA linkage, ratings, first principles and the governing equations — 194 equations in total, each with a worked example using the station's own numbers.
 - **32 animated working models.** Click a breaker and inject a fault to watch the contacts part and the arc die at a current zero; open the relay to see the IEEE inverse-time curve with a moving operating point; watch the tap changer perform a make-before-break transition.
 - **14 operator scenarios**, 89 steps, each explaining what the operator is doing, why, which equipment is involved, how power flow changes, what protection is doing in the background, and the effect on customers and solar.
@@ -25,7 +31,7 @@ Everything visible is a consequence of the electrical model underneath. Energisa
 
 ## Running it
 
-Open `index.html` in any modern browser. Nothing to install.
+Open `index.html` in any modern browser. It loads the operator interface from `scada-ui.css` and `scada-ui.js`; nothing needs to be installed or compiled.
 
 Three.js and the fonts load from CDNs, so an internet connection is needed to view it.
 
